@@ -31,15 +31,15 @@ extern "C"
 #endif
 }
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-  #include <filesystem>
-#endif
+//#if (defined(_WIN32)) || (defined(_WIN64))
+//  #include <filesystem>
+//#endif
 
-#if (defined(_WIN32)) || (defined(_WIN64))
-    #define EXCEPTION_CLASS std::exception
-#else
+//#if (defined(_WIN32)) || (defined(_WIN64))
+//    #define EXCEPTION_CLASS std::exception
+//#else
     #define EXCEPTION_CLASS std::runtime_error
-#endif
+//#endif
 
 
 #if (defined(_WIN64)) && (!defined(__APPLE__))

@@ -74,10 +74,10 @@
 #endif /* compiler */
 
 
-#if defined(UNIXEM_opendir_PROVIDED_BY_COMPILER) && \
-    !defined(UNIXEM_FORCE_ANY_COMPILER)
-# error The opendir() API is provided by this compiler, so should not be built here
-#endif /* !UNIXEM_opendir_PROVIDED_BY_COMPILER */
+//#if defined(UNIXEM_opendir_PROVIDED_BY_COMPILER) && \
+//    !defined(UNIXEM_FORCE_ANY_COMPILER)
+//# error The opendir() API is provided by this compiler, so should not be built here
+//#endif /* !UNIXEM_opendir_PROVIDED_BY_COMPILER */
 
 /* /////////////////////////////////////////////////////////////////////////////
  * Typedefs
