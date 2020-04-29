@@ -8,6 +8,67 @@
 
 namespace zipper {
 
+
+void filetime(const char *f, tm *tmzip)
+{
+    #ifdef _WIN32
+	WIN32_FIND_DATAA ff32;
+	HANDLE hFind = FindFirstFileA(f,&ff32);
+	if(hFind != INVALID_HANDLE_VALUE)
+	{
+		FILETIME ftLocal;
+        SYSTEMTIME localTime;
+		FileTimeToLocalFileTime(&(ff32.ftLastWriteTime), &ftLocal);
+        FileTimeToSystemTime(&ftLocal, &localTime);
+
+        tmzip->tm_hour = localTime.wHour;
+        tmzip->tm_min = localTime.wMinute;
+        tmzip->tm_mday = localTime.wDay;
+        tmzip->tm_mon = localTime.wMonth - 1;
+        tmzip->tm_sec = localTime.wSecond;
+        tmzip->tm_year = localTime.wYear - 1900;
+        
+        FindClose(hFind);
+	}
+#else
+	time_t tm_t = 0;
+
+	if(strcmp(f, "-") != 0)
+	{
+		char name[MAXFILENAME + 1];
+		int len = strlen(f);
+		if (len > MAXFILENAME)
+		{
+			len = MAXFILENAME;
+		}
+
+		strncpy(name, f, MAXFILENAME - 1);
+		// strncpy doesnt append the trailing NULL, of the string is too long.
+		name[ MAXFILENAME ] = '\0';
+
+		if (name[len - 1] == '/')
+		{
+			name[len - 1] = '\0';
+		}
+		// not all systems allow stat'ing a file with / appended
+		struct stat s;        // results of stat()
+		if(stat(name, &s) == 0)
+		{
+			tm_t = s.st_mtime;
+		}
+	}
+
+	struct tm *filedate = localtime(&tm_t);
+
+	tmzip->tm_sec  = filedate->tm_sec;
+	tmzip->tm_min  = filedate->tm_min;
+	tmzip->tm_hour = filedate->tm_hour;
+	tmzip->tm_mday = filedate->tm_mday;
+	tmzip->tm_mon  = filedate->tm_mon ;
+	tmzip->tm_year = filedate->tm_year;
+#endif
+}
+
 	struct Zipper::Impl
 	{
 		Zipper& m_outer;
@@ -95,7 +156,7 @@ namespace zipper {
 			return m_zf != NULL;
 		}
 
-		bool add(std::istream& input_stream, const std::string& nameInZip, const std::string& password, int flags)
+		bool add(std::istream& input_stream, const tm& timestamp, const std::string& nameInZip, const std::string& password, int flags)
 		{
 			if (!m_zf) return false;
 
@@ -106,6 +167,12 @@ namespace zipper {
 			unsigned long crcFile = 0;
 
 			zip_fileinfo zi = { 0 };
+			zi.tmz_date.tm_sec  = timestamp.tm_sec;
+			zi.tmz_date.tm_min  = timestamp.tm_min;
+			zi.tmz_date.tm_hour = timestamp.tm_hour;
+			zi.tmz_date.tm_mday = timestamp.tm_mday;
+			zi.tmz_date.tm_mon  = timestamp.tm_mon;
+			zi.tmz_date.tm_year = timestamp.tm_year;
 			size_t size_read;
 
 			std::vector<char> buff;
@@ -289,7 +356,10 @@ namespace zipper {
 
 	bool Zipper::add(std::istream& source, const std::string& nameInZip, zipFlags flags)
 	{
-		return m_impl->add(source, nameInZip, "", flags);
+		struct tm tmzip = { 0 };
+		filetime(nameInZip.c_str(), &tmzip);
+
+		return m_impl->add(source, tmzip, nameInZip, "", flags);
 	}
 
 	bool Zipper::add(const std::string& fileOrFolderPath, zipFlags flags)
@@ -301,16 +371,22 @@ namespace zipper {
 			std::vector<std::string>::iterator it = files.begin();
 			for (; it != files.end(); ++it)
 			{
+				struct tm tmzip = { 0 };
+				filetime(it->c_str(), &tmzip);
+
 				std::ifstream input(it->c_str(), std::ios::binary);
 				std::string nameInZip = it->substr(it->rfind(folderName + CDirEntry::Separator), it->size());
-				add(input, nameInZip, flags);
+				m_impl->add(input, tmzip, nameInZip, "", flags);
 				input.close();
 			}
 		}
 		else
 		{
+			struct tm tmzip = { 0 };
+			filetime(fileOrFolderPath.c_str(), &tmzip);
+
 			std::ifstream input(fileOrFolderPath.c_str(), std::ios::binary);
-			add(input, fileNameFromPath(fileOrFolderPath), flags);
+			m_impl->add(input, tmzip, fileNameFromPath(fileOrFolderPath), "", flags);
 			input.close();
 		}
 
